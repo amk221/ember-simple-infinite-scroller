@@ -94,7 +94,7 @@ The component will yield a hash that provides:
   </tr>
   <tr>
     <td>setElement</td>
-    <td>Sets the element for which to monitor the scroll position of</td>
+    <td>A modifier for setting the element for which to monitor the scroll position of</td>
   </tr>
   <tr>
     <td>isLoading</td>

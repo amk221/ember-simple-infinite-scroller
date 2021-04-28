@@ -6,7 +6,7 @@
   class="example-4"
   @onLoadMore={{this.handleLoadMore}} as |scroller|
 >
-  <div class="internal-element" {{did-insert scroller.setElement}}>
+  <div class="internal-element" {{scroller.setElement}}>
     {{#each this.things as |thing|}}
       <div class="thing">
         {{thing.name}}

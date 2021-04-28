@@ -4,6 +4,7 @@ import hbs from 'htmlbars-inline-precompile';
 import { defer } from 'rsvp';
 import { later } from '@ember/runloop';
 import generateThings from 'dummy/utils/generate-things';
+import { modifier } from 'ember-modifier';
 import {
   render,
   settled,
@@ -244,54 +245,6 @@ module('infinite-scroller', function (hooks) {
     assert.verifySteps(['load more']);
   });
 
-  test('custom element via argument', async function (assert) {
-    assert.expect(2);
-
-    this.things = generateThings(1, 20);
-
-    this.setElement = (element) => this.set('customElement', element);
-
-    await render(hbs`
-      <div class="external-element" {{did-insert this.setElement}}>
-        {{#each this.things as |thing|}}
-          <div class="thing">{{thing.name}}</div>
-        {{/each}}
-      </div>
-
-      <InfiniteScroller
-        @element={{this.customElement}}
-        @onLoadMore={{this.handleLoadMore}}
-      />
-    `);
-
-    await this.scrollToPercentage('.external-element', 100);
-
-    assert.verifySteps(['load more']);
-  });
-
-  test('custom element via registration', async function (assert) {
-    assert.expect(2);
-
-    this.things = generateThings(1, 20);
-
-    await render(hbs`
-      <InfiniteScroller
-        @onLoadMore={{this.handleLoadMore}}
-        as |scroller|
-      >
-        <div class="internal-element" {{did-insert scroller.setElement}}>
-          {{#each this.things as |thing|}}
-            <div class="thing">{{thing.name}}</div>
-          {{/each}}
-        </div>
-      </InfiniteScroller>
-    `);
-
-    await this.scrollToPercentage('.internal-element', 100);
-
-    assert.verifySteps(['load more']);
-  });
-
   test('loading class name', async function (assert) {
     assert.expect(5);
 
@@ -520,28 +473,27 @@ module('infinite-scroller', function (hooks) {
     assert.verifySteps(['load more']);
   });
 
-  test('changing element argument', async function (assert) {
-    assert.expect(3);
+  test('custom element via element argument', async function (assert) {
+    assert.expect(4);
 
     this.things = generateThings(1, 20);
 
-    this.setDiv1 = (element) => {
+    this.setDiv1 = modifier((element) => {
       this.set('div1', element);
-      this.set('customElement', this.div1);
-    };
+    });
 
-    this.setDiv2 = (element) => {
+    this.setDiv2 = modifier((element) => {
       this.set('div2', element);
-    };
+    });
 
     await render(hbs`
-      <div class="external-element" {{did-insert this.setDiv1}}>
+      <div class="external-element one" {{this.setDiv1}}>
         {{#each this.things as |thing|}}
           <div class="thing">{{thing.name}}</div>
         {{/each}}
       </div>
 
-      <div class="external-element" {{did-insert this.setDiv2}}>
+      <div class="external-element two" {{this.setDiv2}}>
         {{#each this.things as |thing|}}
           <div class="thing">{{thing.name}}</div>
         {{/each}}
@@ -553,20 +505,65 @@ module('infinite-scroller', function (hooks) {
       />
     `);
 
-    await this.scrollToPercentage('.external-element:nth-child(1)', 100);
+    this.set('customElement', this.div1);
 
-    this.willLoad.resolve();
+    await this.scrollToPercentage('.external-element.one', 100);
 
     assert.verifySteps(['load more']);
 
+    this.willLoad.resolve();
+
     this.set('customElement', this.div2);
 
-    await this.scrollToPercentage('.external-element:nth-child(2)', 100);
+    await this.scrollToPercentage('.external-element.two', 100);
 
     assert.verifySteps(
-      [],
-      'only fires load action once, because the scroll listeners are not' +
-        'reconfigured when element changes.'
+      ['load more'],
+      'load action fires again, because scrollable element has been re-registered'
+    );
+  });
+
+  test('custom element via modifier', async function (assert) {
+    assert.expect(4);
+
+    this.things = generateThings(1, 20);
+
+    await render(hbs`
+      <InfiniteScroller @onLoadMore={{this.handleLoadMore}} as |scroller|>
+        {{#if this.showDiv1}}
+          <div class="internal-element one" {{scroller.setElement}}>
+            {{#each this.things as |thing|}}
+              <div class="thing">{{thing.name}}</div>
+            {{/each}}
+          </div>
+        {{/if}}
+
+        {{#if this.showDiv2}}
+          <div class="internal-element two" {{scroller.setElement}}>
+            {{#each this.things as |thing|}}
+              <div class="thing">{{thing.name}}</div>
+            {{/each}}
+          </div>
+        {{/if}}
+      </InfiniteScroller>
+    `);
+
+    this.set('showDiv1', true);
+
+    await this.scrollToPercentage('.internal-element.one', 100);
+
+    assert.verifySteps(['load more']);
+
+    this.willLoad.resolve();
+
+    this.set('showDiv1', false);
+    this.set('showDiv2', true);
+
+    await this.scrollToPercentage('.internal-element.two', 100);
+
+    assert.verifySteps(
+      ['load more'],
+      'load action fires again, because scrollable element has been re-registered'
     );
   });
 });
